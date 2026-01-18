@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DataSyncManager from '../utils/dataSyncManager';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -140,11 +141,12 @@ const Home = () => {
     }
   };
 
-  const loadPopularCourses = () => {
+  const loadPopularCourses = async () => {
     try {
-      const savedCourses = localStorage.getItem('coursesData');
-      if (savedCourses) {
-        const courses = JSON.parse(savedCourses);
+      const dataSyncManager = new DataSyncManager();
+      const courses = await dataSyncManager.syncCourses();
+      
+      if (courses.length > 0) {
         // Get the show count from home page content, default to 6
         const showCount = homePageContent.popularCourses.showCount || 6;
         // Get top courses by rating or students, fallback to first courses
@@ -157,11 +159,29 @@ const Home = () => {
           }));
         setPopularCourses(topCourses);
       } else {
-        // No admin courses available - show empty state
+        // No courses available - show empty state
         setPopularCourses([]);
       }
     } catch (error) {
       console.error('Error loading popular courses:', error);
+      // Fallback to localStorage on error
+      try {
+        const savedCourses = localStorage.getItem('coursesData');
+        if (savedCourses) {
+          const courses = JSON.parse(savedCourses);
+          const showCount = homePageContent.popularCourses.showCount || 6;
+          const topCourses = courses
+            .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+            .slice(0, showCount)
+            .map(course => ({
+              ...course,
+              showAllFeatures: false
+            }));
+          setPopularCourses(topCourses);
+        }
+      } catch (fallbackError) {
+        console.error('Error loading fallback popular courses:', fallbackError);
+      }
     }
   };
 
@@ -176,17 +196,29 @@ const Home = () => {
     }
   };
 
-  const loadHomePageContent = () => {
+  const loadHomePageContent = async () => {
     try {
-      const savedHomePageContent = localStorage.getItem('homePageContent');
-      if (savedHomePageContent) {
-        const content = JSON.parse(savedHomePageContent);
+      const dataSyncManager = new DataSyncManager();
+      const content = await dataSyncManager.syncHomePageContent();
+      
+      if (content) {
         setHomePageContent(content);
         // Also update welcome message from home page content
         setWelcomeMessage(content.hero.title);
       }
     } catch (error) {
       console.error('Error loading home page content:', error);
+      // Fallback to localStorage on error
+      try {
+        const savedHomePageContent = localStorage.getItem('homePageContent');
+        if (savedHomePageContent) {
+          const content = JSON.parse(savedHomePageContent);
+          setHomePageContent(content);
+          setWelcomeMessage(content.hero.title);
+        }
+      } catch (fallbackError) {
+        console.error('Error loading fallback home page content:', fallbackError);
+      }
     }
   };
 

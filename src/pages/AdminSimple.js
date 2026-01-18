@@ -4,6 +4,7 @@ import FeedbackExcelAPI from '../utils/feedbackExcelAPI';
 import ConfigLogger from '../utils/configLogger';
 import AdminCard, { StatusIndicator, FormSection, StatsGrid, ActionButtons } from '../components/AdminCard';
 import { convertToCSV, getConversionInstructions } from '../utils/urlConverter';
+import DataSyncManager from '../utils/dataSyncManager';
 import '../components/AdminCard.css';
 
 const AdminSimple = () => {
@@ -323,6 +324,22 @@ const AdminSimple = () => {
         }
     });
     const [impactStatsUpdateStatus, setImpactStatsUpdateStatus] = useState('');
+
+    // Google Sheets Data Sync Management state
+    const [dataSyncManager] = useState(() => new DataSyncManager());
+    const [googleSheetsURLs, setGoogleSheetsURLs] = useState({
+        courses: '',
+        teamMembers: '',
+        galleryItems: '',
+        homePageContent: '',
+        footerContactInfo: '',
+        socialMediaLinks: ''
+    });
+    const [dataSyncEnabled, setDataSyncEnabled] = useState(false);
+    const [syncStatus, setSyncStatus] = useState('');
+    const [lastSyncTime, setLastSyncTime] = useState(null);
+    const [syncInProgress, setSyncInProgress] = useState(false);
+
     // Check if already logged in on component mount
     useEffect(() => {
         const adminToken = localStorage.getItem('adminToken');
@@ -335,6 +352,9 @@ const AdminSimple = () => {
         // Load admin credentials
         loadAdminCredentials();
         loadRecoveryCode();
+        
+        // Initialize Google Sheets sync
+        initializeGoogleSheetsSync();
     }, []);
 
     // Load admin credentials from localStorage
@@ -408,6 +428,121 @@ const AdminSimple = () => {
         setRecoveryCode(result);
         localStorage.setItem('adminRecoveryCode', result);
         return result;
+    };
+
+    // Initialize Google Sheets sync
+    const initializeGoogleSheetsSync = () => {
+        try {
+            // Load saved Google Sheets URLs
+            const savedURLs = dataSyncManager.loadSheetURLs();
+            setGoogleSheetsURLs(savedURLs);
+            
+            // Load sync enabled status
+            const syncEnabled = dataSyncManager.isSyncEnabled();
+            setDataSyncEnabled(syncEnabled);
+            
+            // Load last sync time
+            const lastSync = localStorage.getItem('lastSyncTime');
+            if (lastSync) {
+                setLastSyncTime(new Date(lastSync));
+            }
+        } catch (error) {
+            console.error('Error initializing Google Sheets sync:', error);
+        }
+    };
+
+    // Update Google Sheets URLs
+    const updateGoogleSheetsURLs = (newURLs) => {
+        try {
+            dataSyncManager.saveSheetURLs(newURLs);
+            setGoogleSheetsURLs(prev => ({ ...prev, ...newURLs }));
+            setSyncStatus('Google Sheets URLs updated successfully!');
+            setTimeout(() => setSyncStatus(''), 3000);
+        } catch (error) {
+            console.error('Error updating Google Sheets URLs:', error);
+            setSyncStatus('Error updating Google Sheets URLs');
+            setTimeout(() => setSyncStatus(''), 3000);
+        }
+    };
+
+    // Toggle data sync
+    const toggleDataSync = (enabled) => {
+        try {
+            dataSyncManager.setSyncEnabled(enabled);
+            setDataSyncEnabled(enabled);
+            setSyncStatus(enabled ? 'Data sync enabled!' : 'Data sync disabled');
+            setTimeout(() => setSyncStatus(''), 3000);
+        } catch (error) {
+            console.error('Error toggling data sync:', error);
+            setSyncStatus('Error updating sync settings');
+            setTimeout(() => setSyncStatus(''), 3000);
+        }
+    };
+
+    // Perform full data sync
+    const performFullSync = async () => {
+        if (syncInProgress) return;
+        
+        try {
+            setSyncInProgress(true);
+            setSyncStatus('Syncing data from Google Sheets...');
+            
+            const syncResults = await dataSyncManager.syncAllData();
+            
+            // Update local state with synced data
+            if (syncResults.courses.length > 0) {
+                setCourses(syncResults.courses);
+            }
+            if (syncResults.teamMembers.length > 0) {
+                setTeamMembers(syncResults.teamMembers);
+            }
+            if (syncResults.galleryItems.length > 0) {
+                setGalleryItems(syncResults.galleryItems);
+            }
+            if (syncResults.homePageContent) {
+                setHomePageContent(syncResults.homePageContent);
+            }
+            if (syncResults.footerContactInfo) {
+                setFooterContactInfo(syncResults.footerContactInfo);
+            }
+            if (syncResults.socialMediaLinks) {
+                setSocialMediaLinks(syncResults.socialMediaLinks);
+            }
+            
+            // Update last sync time
+            const now = new Date();
+            setLastSyncTime(now);
+            localStorage.setItem('lastSyncTime', now.toISOString());
+            
+            setSyncStatus('Data sync completed successfully!');
+            setTimeout(() => setSyncStatus(''), 5000);
+        } catch (error) {
+            console.error('Error during full sync:', error);
+            setSyncStatus('Error during data sync. Check console for details.');
+            setTimeout(() => setSyncStatus(''), 5000);
+        } finally {
+            setSyncInProgress(false);
+        }
+    };
+
+    // Test Google Sheets URL
+    const testGoogleSheetsURL = (url, type) => {
+        if (!url) {
+            setSyncStatus('Please enter a URL to test');
+            setTimeout(() => setSyncStatus(''), 3000);
+            return;
+        }
+        
+        if (!dataSyncManager.sheetsAPI.isValidGoogleSheetsURL(url)) {
+            setSyncStatus('Invalid Google Sheets URL format');
+            setTimeout(() => setSyncStatus(''), 3000);
+            return;
+        }
+        
+        // Open URL in new tab for testing
+        window.open(url, '_blank');
+        setSyncStatus(`Testing ${type} Google Sheets URL...`);
+        setTimeout(() => setSyncStatus(''), 3000);
     };
 
     // Load all data when logged in
@@ -1202,18 +1337,44 @@ const AdminSimple = () => {
         setTimeout(() => setPublicStatsUpdateStatus(''), 3000);
     };
     // Gallery management functions
-    const loadGalleryData = () => {
+    const loadGalleryData = async () => {
         try {
-            const savedGalleryItems = localStorage.getItem('galleryItems');
-            const savedAchievements = localStorage.getItem('galleryAchievements');
-            if (savedGalleryItems) {
-                setGalleryItems(JSON.parse(savedGalleryItems));
-            }
-            if (savedAchievements) {
-                setGalleryAchievements(JSON.parse(savedAchievements));
+            if (dataSyncEnabled) {
+                // Try to sync from Google Sheets first
+                const syncedGalleryItems = await dataSyncManager.syncGalleryItems();
+                setGalleryItems(syncedGalleryItems);
+                
+                // Gallery achievements are still stored locally for now
+                const savedAchievements = localStorage.getItem('galleryAchievements');
+                if (savedAchievements) {
+                    setGalleryAchievements(JSON.parse(savedAchievements));
+                }
+            } else {
+                // Load from localStorage
+                const savedGalleryItems = localStorage.getItem('galleryItems');
+                const savedAchievements = localStorage.getItem('galleryAchievements');
+                if (savedGalleryItems) {
+                    setGalleryItems(JSON.parse(savedGalleryItems));
+                }
+                if (savedAchievements) {
+                    setGalleryAchievements(JSON.parse(savedAchievements));
+                }
             }
         } catch (error) {
             console.error('Error loading gallery data:', error);
+            // Fallback to localStorage on error
+            try {
+                const savedGalleryItems = localStorage.getItem('galleryItems');
+                const savedAchievements = localStorage.getItem('galleryAchievements');
+                if (savedGalleryItems) {
+                    setGalleryItems(JSON.parse(savedGalleryItems));
+                }
+                if (savedAchievements) {
+                    setGalleryAchievements(JSON.parse(savedAchievements));
+                }
+            } catch (fallbackError) {
+                console.error('Error loading fallback gallery data:', fallbackError);
+            }
         }
     };
 
@@ -1289,14 +1450,30 @@ const AdminSimple = () => {
         setTimeout(() => setGalleryUpdateStatus(''), 3000);
     };
     // Course management functions (simplified)
-    const loadCoursesData = () => {
+    const loadCoursesData = async () => {
         try {
-            const savedCourses = localStorage.getItem('coursesData');
-            if (savedCourses) {
-                setCourses(JSON.parse(savedCourses));
+            if (dataSyncEnabled) {
+                // Try to sync from Google Sheets first
+                const syncedCourses = await dataSyncManager.syncCourses();
+                setCourses(syncedCourses);
+            } else {
+                // Load from localStorage
+                const savedCourses = localStorage.getItem('coursesData');
+                if (savedCourses) {
+                    setCourses(JSON.parse(savedCourses));
+                }
             }
         } catch (error) {
             console.error('Error loading courses data:', error);
+            // Fallback to localStorage on error
+            try {
+                const savedCourses = localStorage.getItem('coursesData');
+                if (savedCourses) {
+                    setCourses(JSON.parse(savedCourses));
+                }
+            } catch (fallbackError) {
+                console.error('Error loading fallback courses data:', fallbackError);
+            }
         }
     };
 
@@ -1637,14 +1814,30 @@ const AdminSimple = () => {
         }
     };
 
-    const loadTeamMembers = () => {
+    const loadTeamMembers = async () => {
         try {
-            const savedTeamMembers = localStorage.getItem('teamMembers');
-            if (savedTeamMembers) {
-                setTeamMembers(JSON.parse(savedTeamMembers));
+            if (dataSyncEnabled) {
+                // Try to sync from Google Sheets first
+                const syncedTeamMembers = await dataSyncManager.syncTeamMembers();
+                setTeamMembers(syncedTeamMembers);
+            } else {
+                // Load from localStorage
+                const savedTeamMembers = localStorage.getItem('teamMembers');
+                if (savedTeamMembers) {
+                    setTeamMembers(JSON.parse(savedTeamMembers));
+                }
             }
         } catch (error) {
             console.error('Error loading team members:', error);
+            // Fallback to localStorage on error
+            try {
+                const savedTeamMembers = localStorage.getItem('teamMembers');
+                if (savedTeamMembers) {
+                    setTeamMembers(JSON.parse(savedTeamMembers));
+                }
+            } catch (fallbackError) {
+                console.error('Error loading fallback team members:', fallbackError);
+            }
         }
     };
 
@@ -1829,40 +2022,90 @@ const AdminSimple = () => {
         }
     };
 
-    const loadSocialMediaLinks = () => {
+    const loadSocialMediaLinks = async () => {
         try {
-            const savedLinks = localStorage.getItem('socialMediaLinks');
-            if (savedLinks) {
-                setSocialMediaLinks(JSON.parse(savedLinks));
+            if (dataSyncEnabled) {
+                // Try to sync from Google Sheets first
+                const syncedLinks = await dataSyncManager.syncSocialMediaLinks();
+                if (syncedLinks) {
+                    setSocialMediaLinks(syncedLinks);
+                }
+            } else {
+                // Load from localStorage
+                const savedLinks = localStorage.getItem('socialMediaLinks');
+                if (savedLinks) {
+                    setSocialMediaLinks(JSON.parse(savedLinks));
+                }
             }
         } catch (error) {
             console.error('Error loading social media links:', error);
+            // Fallback to localStorage on error
+            try {
+                const savedLinks = localStorage.getItem('socialMediaLinks');
+                if (savedLinks) {
+                    setSocialMediaLinks(JSON.parse(savedLinks));
+                }
+            } catch (fallbackError) {
+                console.error('Error loading fallback social media links:', fallbackError);
+            }
         }
     };
 
-    const loadFooterContactInfo = () => {
+    const loadFooterContactInfo = async () => {
         try {
-            const savedContactInfo = localStorage.getItem('footerContactInfo');
-            if (savedContactInfo) {
-                const contactInfo = JSON.parse(savedContactInfo);
-                // Merge with defaults to ensure all fields exist
-                const completeContactInfo = {
-                    email: contactInfo.email || '',
-                    phone: contactInfo.phone || '',
-                    address: contactInfo.address || '',
-                    companyName: contactInfo.companyName || '',
-                    tagline: contactInfo.tagline || '',
-                    stayUpdatedTitle: contactInfo.stayUpdatedTitle || 'Stay Updated',
-                    stayUpdatedDescription: contactInfo.stayUpdatedDescription || 'Get the latest updates about our courses and certifications',
-                    websiteName: contactInfo.websiteName || 'EduPlatform',
-                    websiteTitle: contactInfo.websiteTitle || 'EduPlatform - Professional Courses',
-                    welcomeMessage: contactInfo.welcomeMessage || 'Welcome to EduPlatform',
-                    copyrightText: contactInfo.copyrightText || '© 2024 EduPlatform. All rights reserved.'
-                };
-                setFooterContactInfo(completeContactInfo);
+            if (dataSyncEnabled) {
+                // Try to sync from Google Sheets first
+                const syncedContactInfo = await dataSyncManager.syncFooterContactInfo();
+                if (syncedContactInfo) {
+                    setFooterContactInfo(syncedContactInfo);
+                }
+            } else {
+                // Load from localStorage
+                const savedContactInfo = localStorage.getItem('footerContactInfo');
+                if (savedContactInfo) {
+                    const contactInfo = JSON.parse(savedContactInfo);
+                    // Merge with defaults to ensure all fields exist
+                    const completeContactInfo = {
+                        email: contactInfo.email || '',
+                        phone: contactInfo.phone || '',
+                        address: contactInfo.address || '',
+                        companyName: contactInfo.companyName || '',
+                        tagline: contactInfo.tagline || '',
+                        stayUpdatedTitle: contactInfo.stayUpdatedTitle || 'Stay Updated',
+                        stayUpdatedDescription: contactInfo.stayUpdatedDescription || 'Get the latest updates about our courses and certifications',
+                        websiteName: contactInfo.websiteName || 'EduPlatform',
+                        websiteTitle: contactInfo.websiteTitle || 'EduPlatform - Professional Courses',
+                        welcomeMessage: contactInfo.welcomeMessage || 'Welcome to EduPlatform',
+                        copyrightText: contactInfo.copyrightText || '© 2024 EduPlatform. All rights reserved.'
+                    };
+                    setFooterContactInfo(completeContactInfo);
+                }
             }
         } catch (error) {
             console.error('Error loading footer contact info:', error);
+            // Fallback to localStorage on error
+            try {
+                const savedContactInfo = localStorage.getItem('footerContactInfo');
+                if (savedContactInfo) {
+                    const contactInfo = JSON.parse(savedContactInfo);
+                    const completeContactInfo = {
+                        email: contactInfo.email || '',
+                        phone: contactInfo.phone || '',
+                        address: contactInfo.address || '',
+                        companyName: contactInfo.companyName || '',
+                        tagline: contactInfo.tagline || '',
+                        stayUpdatedTitle: contactInfo.stayUpdatedTitle || 'Stay Updated',
+                        stayUpdatedDescription: contactInfo.stayUpdatedDescription || 'Get the latest updates about our courses and certifications',
+                        websiteName: contactInfo.websiteName || 'EduPlatform',
+                        websiteTitle: contactInfo.websiteTitle || 'EduPlatform - Professional Courses',
+                        welcomeMessage: contactInfo.welcomeMessage || 'Welcome to EduPlatform',
+                        copyrightText: contactInfo.copyrightText || '© 2024 EduPlatform. All rights reserved.'
+                    };
+                    setFooterContactInfo(completeContactInfo);
+                }
+            } catch (fallbackError) {
+                console.error('Error loading fallback footer contact info:', fallbackError);
+            }
         }
     };
 
@@ -1949,14 +2192,32 @@ const AdminSimple = () => {
     };
 
     // Home Page Content Management functions
-    const loadHomePageContent = () => {
+    const loadHomePageContent = async () => {
         try {
-            const savedHomePageContent = localStorage.getItem('homePageContent');
-            if (savedHomePageContent) {
-                setHomePageContent(JSON.parse(savedHomePageContent));
+            if (dataSyncEnabled) {
+                // Try to sync from Google Sheets first
+                const syncedContent = await dataSyncManager.syncHomePageContent();
+                if (syncedContent) {
+                    setHomePageContent(syncedContent);
+                }
+            } else {
+                // Load from localStorage
+                const savedHomePageContent = localStorage.getItem('homePageContent');
+                if (savedHomePageContent) {
+                    setHomePageContent(JSON.parse(savedHomePageContent));
+                }
             }
         } catch (error) {
             console.error('Error loading home page content:', error);
+            // Fallback to localStorage on error
+            try {
+                const savedHomePageContent = localStorage.getItem('homePageContent');
+                if (savedHomePageContent) {
+                    setHomePageContent(JSON.parse(savedHomePageContent));
+                }
+            } catch (fallbackError) {
+                console.error('Error loading fallback home page content:', fallbackError);
+            }
         }
     };
 
@@ -2795,6 +3056,284 @@ const AdminSimple = () => {
                                     <li>Log out when you're done using the admin panel</li>
                                 </ul>
                             </div>
+                        </FormSection>
+                    </AdminCard>
+
+                    {/* Google Sheets Data Sync Configuration */}
+                    <AdminCard title="Google Sheets Data Sync" icon="📊" collapsible={true} defaultExpanded={false}>
+                        <FormSection title="Data Sync Configuration">
+                            <div style={{ marginBottom: '20px', padding: '15px', background: '#e3f2fd', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', color: '#1565c0' }}>🔄 Shared Data Management</h4>
+                                <p style={{ margin: '0', fontSize: '0.9rem', color: '#1565c0' }}>
+                                    Enable Google Sheets sync to share data across all users. When enabled, all visitors will see the same content when you update it from the admin panel.
+                                </p>
+                            </div>
+
+                            {/* Sync Enable/Disable */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '10px' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={dataSyncEnabled}
+                                        onChange={(e) => toggleDataSync(e.target.checked)}
+                                        style={{ marginRight: '10px' }}
+                                    />
+                                    <span style={{ fontWeight: 'bold' }}>Enable Google Sheets Data Sync</span>
+                                </label>
+                                <p style={{ fontSize: '0.85rem', color: '#666', margin: '0' }}>
+                                    When enabled, data will be loaded from Google Sheets instead of local storage
+                                </p>
+                            </div>
+
+                            {/* Sync Status */}
+                            {syncStatus && <StatusIndicator status={syncStatus} />}
+
+                            {/* Last Sync Time */}
+                            {lastSyncTime && (
+                                <div style={{ marginBottom: '15px', fontSize: '0.9rem', color: '#666' }}>
+                                    Last sync: {lastSyncTime.toLocaleString()}
+                                </div>
+                            )}
+
+                            {/* Sync Actions */}
+                            <ActionButtons
+                                buttons={[
+                                    {
+                                        text: syncInProgress ? 'Syncing...' : '🔄 Sync All Data',
+                                        onClick: performFullSync,
+                                        disabled: !dataSyncEnabled || syncInProgress,
+                                        primary: true
+                                    }
+                                ]}
+                            />
+                        </FormSection>
+
+                        {/* Google Sheets URLs Configuration */}
+                        <FormSection title="Google Sheets URLs">
+                            <div style={{ marginBottom: '20px', padding: '15px', background: '#fff3cd', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', color: '#856404' }}>📋 Setup Instructions</h4>
+                                <ol style={{ margin: '0', fontSize: '0.85rem', color: '#856404' }}>
+                                    <li>Create Google Sheets with the required column headers</li>
+                                    <li>Make sure the sheets are publicly viewable (Share → Anyone with the link can view)</li>
+                                    <li>Copy the Google Sheets URLs and paste them below</li>
+                                    <li>Enable data sync and click "Sync All Data"</li>
+                                </ol>
+                            </div>
+
+                            {/* Courses Sheet URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Courses Data Sheet URL:
+                                </label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        type="url"
+                                        value={googleSheetsURLs.courses}
+                                        onChange={(e) => setGoogleSheetsURLs(prev => ({ ...prev, courses: e.target.value }))}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="admin-input"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        onClick={() => testGoogleSheetsURL(googleSheetsURLs.courses, 'Courses')}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#17a2b8',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        Test
+                                    </button>
+                                </div>
+                                <small style={{ color: '#666' }}>
+                                    Headers: id, title, description, price, duration, level, category, imageUrl, instructor, rating, students, features
+                                </small>
+                            </div>
+
+                            {/* Team Members Sheet URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Team Members Data Sheet URL:
+                                </label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        type="url"
+                                        value={googleSheetsURLs.teamMembers}
+                                        onChange={(e) => setGoogleSheetsURLs(prev => ({ ...prev, teamMembers: e.target.value }))}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="admin-input"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        onClick={() => testGoogleSheetsURL(googleSheetsURLs.teamMembers, 'Team Members')}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#17a2b8',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        Test
+                                    </button>
+                                </div>
+                                <small style={{ color: '#666' }}>
+                                    Headers: id, name, position, description, imageUrl, email, linkedin
+                                </small>
+                            </div>
+
+                            {/* Gallery Items Sheet URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Gallery Items Data Sheet URL:
+                                </label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        type="url"
+                                        value={googleSheetsURLs.galleryItems}
+                                        onChange={(e) => setGoogleSheetsURLs(prev => ({ ...prev, galleryItems: e.target.value }))}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="admin-input"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        onClick={() => testGoogleSheetsURL(googleSheetsURLs.galleryItems, 'Gallery Items')}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#17a2b8',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        Test
+                                    </button>
+                                </div>
+                                <small style={{ color: '#666' }}>
+                                    Headers: id, title, description, category, imageUrl
+                                </small>
+                            </div>
+
+                            {/* Home Page Content Sheet URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Home Page Content Sheet URL:
+                                </label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        type="url"
+                                        value={googleSheetsURLs.homePageContent}
+                                        onChange={(e) => setGoogleSheetsURLs(prev => ({ ...prev, homePageContent: e.target.value }))}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="admin-input"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        onClick={() => testGoogleSheetsURL(googleSheetsURLs.homePageContent, 'Home Page Content')}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#17a2b8',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        Test
+                                    </button>
+                                </div>
+                                <small style={{ color: '#666' }}>
+                                    Single row with headers: heroTitle, heroSubtitle, heroPrimaryButton, heroSecondaryButton, etc.
+                                </small>
+                            </div>
+
+                            {/* Footer Contact Info Sheet URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Footer Contact Info Sheet URL:
+                                </label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        type="url"
+                                        value={googleSheetsURLs.footerContactInfo}
+                                        onChange={(e) => setGoogleSheetsURLs(prev => ({ ...prev, footerContactInfo: e.target.value }))}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="admin-input"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        onClick={() => testGoogleSheetsURL(googleSheetsURLs.footerContactInfo, 'Footer Contact Info')}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#17a2b8',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        Test
+                                    </button>
+                                </div>
+                                <small style={{ color: '#666' }}>
+                                    Single row with headers: email, phone, address, companyName, tagline, websiteName, etc.
+                                </small>
+                            </div>
+
+                            {/* Social Media Links Sheet URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Social Media Links Sheet URL:
+                                </label>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <input
+                                        type="url"
+                                        value={googleSheetsURLs.socialMediaLinks}
+                                        onChange={(e) => setGoogleSheetsURLs(prev => ({ ...prev, socialMediaLinks: e.target.value }))}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="admin-input"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        onClick={() => testGoogleSheetsURL(googleSheetsURLs.socialMediaLinks, 'Social Media Links')}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#17a2b8',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        Test
+                                    </button>
+                                </div>
+                                <small style={{ color: '#666' }}>
+                                    Single row with headers: facebook, twitter, instagram, linkedin, youtube, whatsapp
+                                </small>
+                            </div>
+
+                            {/* Save URLs Button */}
+                            <ActionButtons
+                                buttons={[
+                                    {
+                                        text: '💾 Save Google Sheets URLs',
+                                        onClick: () => updateGoogleSheetsURLs(googleSheetsURLs),
+                                        primary: true
+                                    }
+                                ]}
+                            />
                         </FormSection>
                     </AdminCard>
 

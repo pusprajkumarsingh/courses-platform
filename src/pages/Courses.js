@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import DataSyncManager from '../utils/dataSyncManager';
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
@@ -51,61 +52,56 @@ const Courses = () => {
 
   // Load courses data from localStorage (managed by admin)
   useEffect(() => {
-    const loadCoursesData = () => {
+    const dataSyncManager = new DataSyncManager();
+    
+    const loadCoursesData = async () => {
       try {
-        const savedCourses = localStorage.getItem('coursesData');
-        const savedCourseStats = localStorage.getItem('courseStats');
-        const savedCategories = localStorage.getItem('courseCategories');
-        
         console.log('Loading courses data...');
-        console.log('Raw savedCourses:', savedCourses);
         
-        if (savedCourses) {
-          const parsedCourses = JSON.parse(savedCourses);
-          console.log('Parsed courses:', parsedCourses);
+        // Try to sync from Google Sheets if enabled, otherwise use localStorage
+        const syncedCourses = await dataSyncManager.syncCourses();
+        console.log('Synced courses:', syncedCourses);
+        
+        // Initialize showAllFeatures state for each course
+        const coursesWithExpandState = syncedCourses.map(course => ({
+          ...course,
+          showAllFeatures: course.showAllFeatures || false
+        }));
+        
+        setCourses(coursesWithExpandState);
+        
+        // Load course categories from localStorage (admin-managed)
+        const savedCategories = localStorage.getItem('courseCategories');
+        if (savedCategories) {
+          const parsedCategories = JSON.parse(savedCategories);
+          console.log('Loaded categories:', parsedCategories);
           
-          // Initialize showAllFeatures state for each course
-          const coursesWithExpandState = parsedCourses.map(course => ({
-            ...course,
-            showAllFeatures: course.showAllFeatures || false
+          // Show all admin-managed categories
+          const categoriesWithAll = [
+            { id: 'all', name: 'All Courses' },
+            ...parsedCategories
+          ];
+          setCategories(categoriesWithAll);
+        } else if (syncedCourses.length > 0) {
+          // If no saved categories, create categories based on existing courses
+          const uniqueCategories = [...new Set(syncedCourses.map(course => course.category))];
+          const dynamicCategories = uniqueCategories.map(categoryId => ({
+            id: categoryId,
+            name: getCategoryDisplayName(categoryId)
           }));
           
-          setCourses(coursesWithExpandState);
-          
-          // Load course categories - show all admin-managed categories
-          if (savedCategories) {
-            const parsedCategories = JSON.parse(savedCategories);
-            console.log('Loaded categories:', parsedCategories);
-            
-            // Show all admin-managed categories (don't filter by courses)
-            const categoriesWithAll = [
-              { id: 'all', name: 'All Courses' },
-              ...parsedCategories
-            ];
-            setCategories(categoriesWithAll);
-          } else {
-            // If no saved categories, create categories based on existing courses
-            const uniqueCategories = [...new Set(parsedCourses.map(course => course.category))];
-            const dynamicCategories = uniqueCategories.map(categoryId => ({
-              id: categoryId,
-              name: getCategoryDisplayName(categoryId)
-            }));
-            
-            const categoriesWithAll = [
-              { id: 'all', name: 'All Courses' },
-              ...dynamicCategories
-            ];
-            setCategories(categoriesWithAll);
-          }
+          const categoriesWithAll = [
+            { id: 'all', name: 'All Courses' },
+            ...dynamicCategories
+          ];
+          setCategories(categoriesWithAll);
         } else {
-          console.log('No saved courses found - empty course list');
-          setCourses([]); // Empty array instead of hardcoded data
-          
           // No courses, so only show "All Courses" category
           setCategories([{ id: 'all', name: 'All Courses' }]);
         }
 
-        // Load course statistics
+        // Load course statistics from localStorage (admin-managed)
+        const savedCourseStats = localStorage.getItem('courseStats');
         if (savedCourseStats) {
           const parsedStats = JSON.parse(savedCourseStats);
           console.log('Loaded course stats:', parsedStats);
@@ -114,7 +110,7 @@ const Courses = () => {
           // Calculate default stats if no admin-managed stats exist
           const totalCategories = savedCategories ? JSON.parse(savedCategories).length : 5;
           const defaultStats = {
-            totalCourses: 6,
+            totalCourses: syncedCourses.length || 6,
             totalStudents: 6740,
             averageRating: 4.8,
             totalCategories: totalCategories
