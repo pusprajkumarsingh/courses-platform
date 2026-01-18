@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
+import { getRouter, getBaseName, getEnvironmentInfo } from './utils/routerConfig';
 import Header from './components/Header';
 import Home from './pages/Home';
 import About from './pages/About';
@@ -13,6 +14,8 @@ import './App.css';
 
 function App() {
   const [isMobileView, setIsMobileView] = useState(false);
+  const Router = getRouter();
+  const basename = getBaseName();
 
   useEffect(() => {
     // Load mobile view preference
@@ -20,6 +23,16 @@ function App() {
     if (savedMobileView === 'true') {
       setIsMobileView(true);
       document.body.classList.add('mobile-optimized');
+    }
+
+    // Log environment info for debugging
+    console.log('App Environment Info:', getEnvironmentInfo());
+
+    // Handle redirect from 404.html for regular servers
+    const redirectPath = sessionStorage.getItem('redirectPath');
+    if (redirectPath && !window.location.hostname.includes('.github.io')) {
+      sessionStorage.removeItem('redirectPath');
+      window.history.replaceState(null, null, redirectPath);
     }
   }, []);
 
@@ -39,7 +52,7 @@ function App() {
   };
 
   return (
-    <Router>
+    <Router basename={basename}>
       <div className="App">
         {/* Mobile CSS Styles */}
         <style>
