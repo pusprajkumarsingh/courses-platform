@@ -44,7 +44,7 @@ function App() {
         {/* Mobile CSS Styles */}
         <style>
           {`
-            /* Mobile Toggle Button Spacing */
+            /* Mobile Toggle Switch Spacing */
             body {
               padding-top: 0 !important;
             }
@@ -54,23 +54,14 @@ function App() {
               padding-top: 15px !important;
             }
             
-            /* Very small screens - make toggle button even smaller */
+            /* Very small screens - make toggle switch even smaller */
             @media (max-width: 480px) {
-              .mobile-toggle-pulse {
-                top: 5px !important;
-                left: 5px !important;
-                padding: 6px 8px !important;
-                font-size: 10px !important;
-                min-width: 60px !important;
-                border-radius: 15px !important;
-              }
-              
               .mobile-optimized .container {
-                padding: 10px 15px 10px 80px !important;
+                padding: 10px 15px 10px 70px !important;
               }
               
               .header:not(.mobile-optimized .header) .container {
-                padding: 0 20px 0 80px !important;
+                padding: 0 20px 0 70px !important;
               }
             }
             
@@ -82,7 +73,7 @@ function App() {
               }
               
               .header:not(.mobile-optimized .header) .container {
-                padding: 0 60px 0 100px !important; /* Space for mobile toggle button */
+                padding: 0 60px 0 80px !important; /* Space for mobile toggle switch */
               }
               
               .header:not(.mobile-optimized .header) .nav {
@@ -126,7 +117,7 @@ function App() {
             
             .mobile-optimized .container {
               max-width: 100% !important;
-              padding: 10px 15px 10px 100px !important; /* Space for mobile toggle button on left */
+              padding: 10px 15px 10px 80px !important; /* Space for mobile toggle switch on left */
             }
             
             .mobile-optimized .nav {
@@ -291,82 +282,51 @@ function App() {
               margin-bottom: 10px !important;
               padding: 8px 15px !important;
             }
-            
-            @keyframes pulse {
-              0% { 
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                border-color: rgba(0, 123, 255, 0.3);
-              }
-              50% { 
-                box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-                border-color: rgba(0, 123, 255, 0.5);
-              }
-              100% { 
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                border-color: rgba(0, 123, 255, 0.3);
-              }
-            }
-            
-            .mobile-toggle-pulse {
-              animation: pulse 3s infinite;
-            }
           `}
         </style>
 
-        {/* Mobile Toggle Button */}
-        <button 
-          className="mobile-toggle-pulse"
+        {/* Mobile Toggle Switch */}
+        <div 
           onClick={toggleMobileView}
           title={isMobileView ? "Switch to Desktop View" : "Switch to Mobile View"}
           style={{
             position: 'fixed',
-            top: '10px',
-            left: '10px',
+            top: '15px',
+            left: '15px',
             zIndex: 99999,
-            background: isMobileView 
-              ? 'rgba(40, 167, 69, 0.2)' 
-              : 'rgba(0, 123, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            color: isMobileView ? '#28a745' : '#007bff',
-            border: `2px solid ${isMobileView ? 'rgba(40, 167, 69, 0.3)' : 'rgba(0, 123, 255, 0.3)'}`,
-            borderRadius: '20px',
-            padding: '8px 12px',
-            fontSize: '12px',
-            fontWeight: '600',
+            width: '50px',
+            height: '26px',
+            background: isMobileView ? '#28a745' : '#6c757d',
+            borderRadius: '13px',
             cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
             transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            minWidth: '80px',
-            justifyContent: 'center',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}
-          onMouseOver={(e) => {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-            e.target.style.background = isMobileView 
-              ? 'rgba(40, 167, 69, 0.3)' 
-              : 'rgba(0, 123, 255, 0.3)';
-            e.target.classList.remove('mobile-toggle-pulse');
-          }}
-          onMouseOut={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
-            e.target.style.background = isMobileView 
-              ? 'rgba(40, 167, 69, 0.2)' 
-              : 'rgba(0, 123, 255, 0.2)';
-            e.target.classList.add('mobile-toggle-pulse');
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            border: '2px solid rgba(255,255,255,0.3)',
+            backdropFilter: 'blur(5px)',
+            WebkitBackdropFilter: 'blur(5px)'
           }}
         >
-          <span style={{ fontSize: '12px' }}>
+          {/* Switch Circle */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '2px',
+              left: isMobileView ? '26px' : '2px',
+              width: '18px',
+              height: '18px',
+              background: 'white',
+              borderRadius: '50%',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '8px'
+            }}
+          >
             {isMobileView ? '💻' : '📱'}
-          </span>
-          <span>{isMobileView ? 'Desktop' : 'Mobile'}</span>
-        </button>
+          </div>
+        </div>
 
         <Header />
         <main>
