@@ -335,10 +335,12 @@ const AdminSimple = () => {
         footerContactInfo: '',
         socialMediaLinks: ''
     });
+    const [googleAppsScriptUrl, setGoogleAppsScriptUrl] = useState('');
     const [dataSyncEnabled, setDataSyncEnabled] = useState(false);
     const [syncStatus, setSyncStatus] = useState('');
     const [lastSyncTime, setLastSyncTime] = useState(null);
     const [syncInProgress, setSyncInProgress] = useState(false);
+    const [showAppsScriptCode, setShowAppsScriptCode] = useState(false);
 
     // Check if already logged in on component mount
     useEffect(() => {
@@ -437,6 +439,10 @@ const AdminSimple = () => {
             const savedURLs = dataSyncManager.loadSheetURLs();
             setGoogleSheetsURLs(savedURLs);
             
+            // Load saved Apps Script URL
+            const savedAppsScriptUrl = dataSyncManager.loadAppsScriptUrl();
+            setGoogleAppsScriptUrl(savedAppsScriptUrl);
+            
             // Load sync enabled status
             const syncEnabled = dataSyncManager.isSyncEnabled();
             setDataSyncEnabled(syncEnabled);
@@ -461,6 +467,20 @@ const AdminSimple = () => {
         } catch (error) {
             console.error('Error updating Google Sheets URLs:', error);
             setSyncStatus('Error updating Google Sheets URLs');
+            setTimeout(() => setSyncStatus(''), 3000);
+        }
+    };
+
+    // Update Google Apps Script URL
+    const updateAppsScriptUrl = (url) => {
+        try {
+            dataSyncManager.saveAppsScriptUrl(url);
+            setGoogleAppsScriptUrl(url);
+            setSyncStatus('Google Apps Script URL updated successfully!');
+            setTimeout(() => setSyncStatus(''), 3000);
+        } catch (error) {
+            console.error('Error updating Apps Script URL:', error);
+            setSyncStatus('Error updating Apps Script URL');
             setTimeout(() => setSyncStatus(''), 3000);
         }
     };
@@ -1541,7 +1561,7 @@ const AdminSimple = () => {
         return 'programming';
     };
 
-    const addCourse = () => {
+    const addCourse = async () => {
         if (!courseForm.title.trim() || !courseForm.description.trim() || !courseForm.price.trim()) {
             setCourseUpdateStatus('Please fill in all required fields (title, description, price)');
             setTimeout(() => setCourseUpdateStatus(''), 3000);
@@ -1567,12 +1587,28 @@ const AdminSimple = () => {
         };
         const updatedCourses = [...courses, newCourse];
         setCourses(updatedCourses);
+        
+        // Save to localStorage as backup
         localStorage.setItem('coursesData', JSON.stringify(updatedCourses));
+        
+        // Sync to Google Sheets if enabled
+        if (dataSyncEnabled) {
+            try {
+                setCourseUpdateStatus('Adding course and syncing to Google Sheets...');
+                await dataSyncManager.writeCoursesToSheets(updatedCourses);
+                setCourseUpdateStatus(`Course added and synced successfully! Auto-categorized as: ${getCategoryDisplayName(autoCategory)}`);
+            } catch (error) {
+                console.error('Error syncing to Google Sheets:', error);
+                setCourseUpdateStatus(`Course added locally! Sync to Google Sheets failed: ${error.message}`);
+            }
+        } else {
+            setCourseUpdateStatus(`Course added successfully! Auto-categorized as: ${getCategoryDisplayName(autoCategory)}`);
+        }
+        
         setCourseForm({
             title: '', description: '', price: '', duration: '', level: 'Beginner',
             category: 'programming', imageUrl: '', instructor: '', rating: '', students: '', features: ['']
         });
-        setCourseUpdateStatus(`Course added successfully! Auto-categorized as: ${getCategoryDisplayName(autoCategory)}`);
         setTimeout(() => setCourseUpdateStatus(''), 4000);
     };
 
@@ -1593,7 +1629,7 @@ const AdminSimple = () => {
         });
     };
 
-    const updateCourse = () => {
+    const updateCourse = async () => {
         if (!courseForm.title.trim() || !courseForm.description.trim() || !courseForm.price.trim()) {
             setCourseUpdateStatus('Please fill in all required fields (title, description, price)');
             setTimeout(() => setCourseUpdateStatus(''), 3000);
@@ -1622,22 +1658,53 @@ const AdminSimple = () => {
                 : course
         );
         setCourses(updatedCourses);
+        
+        // Save to localStorage as backup
         localStorage.setItem('coursesData', JSON.stringify(updatedCourses));
+        
+        // Sync to Google Sheets if enabled
+        if (dataSyncEnabled) {
+            try {
+                setCourseUpdateStatus('Updating course and syncing to Google Sheets...');
+                await dataSyncManager.writeCoursesToSheets(updatedCourses);
+                setCourseUpdateStatus(`Course updated and synced successfully! Auto-categorized as: ${getCategoryDisplayName(autoCategory)}`);
+            } catch (error) {
+                console.error('Error syncing to Google Sheets:', error);
+                setCourseUpdateStatus(`Course updated locally! Sync to Google Sheets failed: ${error.message}`);
+            }
+        } else {
+            setCourseUpdateStatus(`Course updated successfully! Auto-categorized as: ${getCategoryDisplayName(autoCategory)}`);
+        }
+        
         setEditingCourse(null);
         setCourseForm({
             title: '', description: '', price: '', duration: '', level: 'Beginner',
             category: 'programming', imageUrl: '', instructor: '', rating: '', students: '', features: ['']
         });
-        setCourseUpdateStatus(`Course updated successfully! Auto-categorized as: ${getCategoryDisplayName(autoCategory)}`);
         setTimeout(() => setCourseUpdateStatus(''), 4000);
     };
 
-    const deleteCourse = (id) => {
+    const deleteCourse = async (id) => {
         if (window.confirm('Are you sure you want to delete this course?')) {
             const updatedCourses = courses.filter(course => course.id !== id);
             setCourses(updatedCourses);
+            
+            // Save to localStorage as backup
             localStorage.setItem('coursesData', JSON.stringify(updatedCourses));
-            setCourseUpdateStatus('Course deleted successfully!');
+            
+            // Sync to Google Sheets if enabled
+            if (dataSyncEnabled) {
+                try {
+                    setCourseUpdateStatus('Deleting course and syncing to Google Sheets...');
+                    await dataSyncManager.writeCoursesToSheets(updatedCourses);
+                    setCourseUpdateStatus('Course deleted and synced successfully!');
+                } catch (error) {
+                    console.error('Error syncing to Google Sheets:', error);
+                    setCourseUpdateStatus(`Course deleted locally! Sync to Google Sheets failed: ${error.message}`);
+                }
+            } else {
+                setCourseUpdateStatus('Course deleted successfully!');
+            }
             setTimeout(() => setCourseUpdateStatus(''), 3000);
         }
     };
@@ -3334,6 +3401,85 @@ const AdminSimple = () => {
                                     }
                                 ]}
                             />
+                        </FormSection>
+
+                        {/* Google Apps Script Configuration */}
+                        <FormSection title="Google Apps Script Configuration">
+                            <div style={{ marginBottom: '20px', padding: '15px', background: '#fff3cd', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', color: '#856404' }}>⚠️ Required for Admin Updates</h4>
+                                <p style={{ margin: '0', fontSize: '0.9rem', color: '#856404' }}>
+                                    To make admin updates visible to all users, you need to set up a Google Apps Script that can write data back to your Google Sheets.
+                                </p>
+                            </div>
+
+                            {/* Apps Script URL */}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                                    Google Apps Script Web App URL:
+                                </label>
+                                <input
+                                    type="url"
+                                    value={googleAppsScriptUrl}
+                                    onChange={(e) => setGoogleAppsScriptUrl(e.target.value)}
+                                    placeholder="https://script.google.com/macros/s/.../exec"
+                                    className="admin-input"
+                                    style={{ marginBottom: '10px' }}
+                                />
+                                <small style={{ color: '#666', display: 'block', marginBottom: '10px' }}>
+                                    This URL allows the admin panel to write updates back to Google Sheets
+                                </small>
+                                <ActionButtons
+                                    buttons={[
+                                        {
+                                            label: '💾 Save Apps Script URL',
+                                            onClick: () => updateAppsScriptUrl(googleAppsScriptUrl),
+                                            variant: 'primary'
+                                        },
+                                        {
+                                            label: showAppsScriptCode ? '🙈 Hide Code' : '📋 Show Apps Script Code',
+                                            onClick: () => setShowAppsScriptCode(!showAppsScriptCode),
+                                            variant: 'secondary'
+                                        }
+                                    ]}
+                                />
+                            </div>
+
+                            {/* Apps Script Code Display */}
+                            {showAppsScriptCode && (
+                                <div style={{ marginTop: '20px' }}>
+                                    <h4 style={{ marginBottom: '10px', color: '#495057' }}>Google Apps Script Code:</h4>
+                                    <div style={{ marginBottom: '15px', padding: '15px', background: '#e9ecef', borderRadius: '8px' }}>
+                                        <h5 style={{ margin: '0 0 10px 0', color: '#495057' }}>Setup Instructions:</h5>
+                                        <ol style={{ margin: '0', fontSize: '0.9rem', color: '#495057' }}>
+                                            <li>Go to <a href="https://script.google.com/" target="_blank" rel="noopener noreferrer">script.google.com</a></li>
+                                            <li>Create a new project</li>
+                                            <li>Replace the default code with the code below</li>
+                                            <li>Save the project (Ctrl+S)</li>
+                                            <li>Deploy → New deployment → Type: Web app</li>
+                                            <li>Execute as: Me, Who has access: Anyone</li>
+                                            <li>Deploy and copy the web app URL</li>
+                                            <li>Paste the URL in the field above</li>
+                                        </ol>
+                                    </div>
+                                    <textarea
+                                        readOnly
+                                        value={dataSyncManager.getAppsScriptSetupInstructions().code}
+                                        style={{
+                                            width: '100%',
+                                            height: '300px',
+                                            fontFamily: 'monospace',
+                                            fontSize: '12px',
+                                            padding: '10px',
+                                            border: '1px solid #ddd',
+                                            borderRadius: '4px',
+                                            background: '#f8f9fa'
+                                        }}
+                                    />
+                                    <div style={{ marginTop: '10px', fontSize: '0.9rem', color: '#666' }}>
+                                        <strong>Note:</strong> Copy this entire code and paste it into your Google Apps Script project.
+                                    </div>
+                                </div>
+                            )}
                         </FormSection>
                     </AdminCard>
 

@@ -2,12 +2,15 @@
 // Handles syncing between localStorage and Google Sheets
 
 import GoogleSheetsDataAPI from './googleSheetsDataAPI';
+import GoogleSheetsWriteAPI from './googleSheetsWriteAPI';
 
 class DataSyncManager {
     constructor() {
         this.sheetsAPI = new GoogleSheetsDataAPI();
+        this.writeAPI = new GoogleSheetsWriteAPI();
         this.syncEnabled = false;
         this.sheetURLs = this.loadSheetURLs();
+        this.appsScriptUrl = this.loadAppsScriptUrl();
     }
 
     // Load Google Sheets URLs from localStorage
@@ -28,6 +31,16 @@ class DataSyncManager {
         }
     }
 
+    // Load Google Apps Script URL from localStorage
+    loadAppsScriptUrl() {
+        try {
+            return localStorage.getItem('googleAppsScriptUrl') || '';
+        } catch (error) {
+            console.error('Error loading Apps Script URL:', error);
+            return '';
+        }
+    }
+
     // Save Google Sheets URLs to localStorage
     saveSheetURLs(urls) {
         try {
@@ -35,6 +48,16 @@ class DataSyncManager {
             localStorage.setItem('googleSheetsURLs', JSON.stringify(this.sheetURLs));
         } catch (error) {
             console.error('Error saving sheet URLs:', error);
+        }
+    }
+
+    // Save Google Apps Script URL to localStorage
+    saveAppsScriptUrl(url) {
+        try {
+            this.appsScriptUrl = url;
+            localStorage.setItem('googleAppsScriptUrl', url);
+        } catch (error) {
+            console.error('Error saving Apps Script URL:', error);
         }
     }
 
@@ -297,6 +320,157 @@ class DataSyncManager {
     // Get setup instructions
     getSetupInstructions() {
         return this.sheetsAPI.getSetupInstructions();
+    }
+
+    // Write data to Google Sheets (for admin updates)
+    async writeCoursesToSheets(courses) {
+        try {
+            if (!this.appsScriptUrl || !this.sheetURLs.courses) {
+                throw new Error('Apps Script URL and Courses Sheet URL are required');
+            }
+
+            const spreadsheetId = this.writeAPI.extractSpreadsheetId(this.sheetURLs.courses);
+            if (!spreadsheetId) {
+                throw new Error('Invalid Google Sheets URL for courses');
+            }
+
+            const result = await this.writeAPI.writeToSheet(courses, 'courses', this.appsScriptUrl, spreadsheetId);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('coursesData', JSON.stringify(courses));
+            
+            return result;
+        } catch (error) {
+            console.error('Error writing courses to sheets:', error);
+            // Save to localStorage as fallback
+            localStorage.setItem('coursesData', JSON.stringify(courses));
+            throw error;
+        }
+    }
+
+    async writeTeamMembersToSheets(teamMembers) {
+        try {
+            if (!this.appsScriptUrl || !this.sheetURLs.teamMembers) {
+                throw new Error('Apps Script URL and Team Members Sheet URL are required');
+            }
+
+            const spreadsheetId = this.writeAPI.extractSpreadsheetId(this.sheetURLs.teamMembers);
+            if (!spreadsheetId) {
+                throw new Error('Invalid Google Sheets URL for team members');
+            }
+
+            const result = await this.writeAPI.writeToSheet(teamMembers, 'teamMembers', this.appsScriptUrl, spreadsheetId);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('teamMembers', JSON.stringify(teamMembers));
+            
+            return result;
+        } catch (error) {
+            console.error('Error writing team members to sheets:', error);
+            localStorage.setItem('teamMembers', JSON.stringify(teamMembers));
+            throw error;
+        }
+    }
+
+    async writeGalleryItemsToSheets(galleryItems) {
+        try {
+            if (!this.appsScriptUrl || !this.sheetURLs.galleryItems) {
+                throw new Error('Apps Script URL and Gallery Items Sheet URL are required');
+            }
+
+            const spreadsheetId = this.writeAPI.extractSpreadsheetId(this.sheetURLs.galleryItems);
+            if (!spreadsheetId) {
+                throw new Error('Invalid Google Sheets URL for gallery items');
+            }
+
+            const result = await this.writeAPI.writeToSheet(galleryItems, 'galleryItems', this.appsScriptUrl, spreadsheetId);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('galleryItems', JSON.stringify(galleryItems));
+            
+            return result;
+        } catch (error) {
+            console.error('Error writing gallery items to sheets:', error);
+            localStorage.setItem('galleryItems', JSON.stringify(galleryItems));
+            throw error;
+        }
+    }
+
+    async writeHomePageContentToSheets(content) {
+        try {
+            if (!this.appsScriptUrl || !this.sheetURLs.homePageContent) {
+                throw new Error('Apps Script URL and Home Page Content Sheet URL are required');
+            }
+
+            const spreadsheetId = this.writeAPI.extractSpreadsheetId(this.sheetURLs.homePageContent);
+            if (!spreadsheetId) {
+                throw new Error('Invalid Google Sheets URL for home page content');
+            }
+
+            const result = await this.writeAPI.writeToSheet(content, 'homePageContent', this.appsScriptUrl, spreadsheetId);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('homePageContent', JSON.stringify(content));
+            
+            return result;
+        } catch (error) {
+            console.error('Error writing home page content to sheets:', error);
+            localStorage.setItem('homePageContent', JSON.stringify(content));
+            throw error;
+        }
+    }
+
+    async writeFooterContactInfoToSheets(contactInfo) {
+        try {
+            if (!this.appsScriptUrl || !this.sheetURLs.footerContactInfo) {
+                throw new Error('Apps Script URL and Footer Contact Info Sheet URL are required');
+            }
+
+            const spreadsheetId = this.writeAPI.extractSpreadsheetId(this.sheetURLs.footerContactInfo);
+            if (!spreadsheetId) {
+                throw new Error('Invalid Google Sheets URL for footer contact info');
+            }
+
+            const result = await this.writeAPI.writeToSheet(contactInfo, 'footerContactInfo', this.appsScriptUrl, spreadsheetId);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('footerContactInfo', JSON.stringify(contactInfo));
+            
+            return result;
+        } catch (error) {
+            console.error('Error writing footer contact info to sheets:', error);
+            localStorage.setItem('footerContactInfo', JSON.stringify(contactInfo));
+            throw error;
+        }
+    }
+
+    async writeSocialMediaLinksToSheets(socialLinks) {
+        try {
+            if (!this.appsScriptUrl || !this.sheetURLs.socialMediaLinks) {
+                throw new Error('Apps Script URL and Social Media Links Sheet URL are required');
+            }
+
+            const spreadsheetId = this.writeAPI.extractSpreadsheetId(this.sheetURLs.socialMediaLinks);
+            if (!spreadsheetId) {
+                throw new Error('Invalid Google Sheets URL for social media links');
+            }
+
+            const result = await this.writeAPI.writeToSheet(socialLinks, 'socialMediaLinks', this.appsScriptUrl, spreadsheetId);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('socialMediaLinks', JSON.stringify(socialLinks));
+            
+            return result;
+        } catch (error) {
+            console.error('Error writing social media links to sheets:', error);
+            localStorage.setItem('socialMediaLinks', JSON.stringify(socialLinks));
+            throw error;
+        }
+    }
+
+    // Get Apps Script setup instructions
+    getAppsScriptSetupInstructions() {
+        return this.writeAPI.getAppsScriptSetupInstructions();
     }
 }
 
