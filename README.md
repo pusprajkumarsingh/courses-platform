@@ -19,7 +19,7 @@ Visit the live website: [https://pusprajkumarsingh.github.io/courses-platform](h
 
 - URL: `/admin`
 - Username: `admin`
-- Password: `admin`
+- Password: `********`
 
 ## Local Development
 
