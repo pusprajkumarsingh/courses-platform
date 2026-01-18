@@ -3099,10 +3099,10 @@ const AdminSimple = () => {
                             <ActionButtons
                                 buttons={[
                                     {
-                                        text: syncInProgress ? 'Syncing...' : '🔄 Sync All Data',
+                                        label: syncInProgress ? 'Syncing...' : '🔄 Sync All Data',
                                         onClick: performFullSync,
                                         disabled: !dataSyncEnabled || syncInProgress,
-                                        primary: true
+                                        variant: 'primary'
                                     }
                                 ]}
                             />
@@ -3328,9 +3328,9 @@ const AdminSimple = () => {
                             <ActionButtons
                                 buttons={[
                                     {
-                                        text: '💾 Save Google Sheets URLs',
+                                        label: '💾 Save Google Sheets URLs',
                                         onClick: () => updateGoogleSheetsURLs(googleSheetsURLs),
-                                        primary: true
+                                        variant: 'primary'
                                     }
                                 ]}
                             />
