@@ -4,30 +4,37 @@
     <meta charset="utf-8">
     <title>EduPlatform - Course Platform</title>
     <script type="text/javascript">
-      // GitHub Pages SPA redirect for HashRouter
-      // This script redirects all routes to the main page with hash routing
+      // Universal SPA redirect for both GitHub Pages and regular servers
       
       var l = window.location;
-      var pathSegmentsToKeep = 1; // Keep /courses-platform/
+      var isGitHubPages = l.hostname.includes('.github.io') || l.pathname.includes('/courses-platform/');
       
-      // Get the path after the repository name
-      var pathSegments = l.pathname.split('/').slice(1 + pathSegmentsToKeep);
-      var redirectPath = pathSegments.join('/');
-      
-      // If there's a path to redirect, add it as a hash route
-      if (redirectPath) {
-        var newUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + 
-          '/#/' + redirectPath +
-          (l.search || '') + (l.hash || '');
+      if (isGitHubPages) {
+        // GitHub Pages: Use hash routing
+        var pathSegmentsToKeep = 1; // Keep /courses-platform/
+        var pathSegments = l.pathname.split('/').slice(1 + pathSegmentsToKeep);
+        var redirectPath = pathSegments.join('/');
         
-        // Redirect to the hash-based URL
-        l.replace(newUrl);
+        if (redirectPath) {
+          var newUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+            l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + 
+            '/#/' + redirectPath +
+            (l.search || '') + (l.hash || '');
+          
+          l.replace(newUrl);
+        } else {
+          var mainUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+            l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+          l.replace(mainUrl);
+        }
       } else {
-        // If no specific path, just go to the main page
-        var mainUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
-        l.replace(mainUrl);
+        // Regular server: Redirect to index.html and let React Router handle it
+        var baseUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/';
+        var currentPath = l.pathname + l.search + l.hash;
+        
+        // Store the intended path for React Router to pick up
+        sessionStorage.setItem('redirectPath', currentPath);
+        l.replace(baseUrl);
       }
     </script>
   </head>
