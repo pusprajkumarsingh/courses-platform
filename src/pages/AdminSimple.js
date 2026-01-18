@@ -1477,19 +1477,31 @@ const AdminSimple = () => {
                 const syncedCourses = await dataSyncManager.syncCourses();
                 setCourses(syncedCourses);
             } else {
-                // Load from localStorage
-                const savedCourses = localStorage.getItem('coursesData');
+                // Load from localStorage - try both keys for compatibility
+                let savedCourses = localStorage.getItem('coursesData');
+                if (!savedCourses) {
+                    savedCourses = localStorage.getItem('courses');
+                }
+                
                 if (savedCourses) {
-                    setCourses(JSON.parse(savedCourses));
+                    const parsedCourses = JSON.parse(savedCourses);
+                    setCourses(parsedCourses);
+                    console.log(`Loaded ${parsedCourses.length} courses from localStorage`);
                 }
             }
         } catch (error) {
             console.error('Error loading courses data:', error);
             // Fallback to localStorage on error
             try {
-                const savedCourses = localStorage.getItem('coursesData');
+                let savedCourses = localStorage.getItem('coursesData');
+                if (!savedCourses) {
+                    savedCourses = localStorage.getItem('courses');
+                }
+                
                 if (savedCourses) {
-                    setCourses(JSON.parse(savedCourses));
+                    const parsedCourses = JSON.parse(savedCourses);
+                    setCourses(parsedCourses);
+                    console.log(`Loaded ${parsedCourses.length} courses from localStorage fallback`);
                 }
             } catch (fallbackError) {
                 console.error('Error loading fallback courses data:', fallbackError);
@@ -1588,8 +1600,9 @@ const AdminSimple = () => {
         const updatedCourses = [...courses, newCourse];
         setCourses(updatedCourses);
         
-        // Save to localStorage as backup
+        // Save to localStorage with both keys for compatibility
         localStorage.setItem('coursesData', JSON.stringify(updatedCourses));
+        localStorage.setItem('courses', JSON.stringify(updatedCourses));
         
         // Sync to Google Sheets if enabled
         if (dataSyncEnabled) {
@@ -1659,8 +1672,9 @@ const AdminSimple = () => {
         );
         setCourses(updatedCourses);
         
-        // Save to localStorage as backup
+        // Save to localStorage with both keys for compatibility
         localStorage.setItem('coursesData', JSON.stringify(updatedCourses));
+        localStorage.setItem('courses', JSON.stringify(updatedCourses));
         
         // Sync to Google Sheets if enabled
         if (dataSyncEnabled) {
@@ -1689,8 +1703,9 @@ const AdminSimple = () => {
             const updatedCourses = courses.filter(course => course.id !== id);
             setCourses(updatedCourses);
             
-            // Save to localStorage as backup
+            // Save to localStorage with both keys for compatibility
             localStorage.setItem('coursesData', JSON.stringify(updatedCourses));
+            localStorage.setItem('courses', JSON.stringify(updatedCourses));
             
             // Sync to Google Sheets if enabled
             if (dataSyncEnabled) {

@@ -56,14 +56,38 @@ const Courses = () => {
     
     const loadCoursesData = async () => {
       try {
-        console.log('Loading courses data...');
+        console.log('Courses.js: Loading courses data...');
         
-        // Try to sync from Google Sheets if enabled, otherwise use localStorage
-        const syncedCourses = await dataSyncManager.syncCourses();
-        console.log('Synced courses:', syncedCourses);
+        // Always try to load from localStorage first, then sync if enabled
+        let coursesData = [];
+        
+        // Load from localStorage - try both keys for compatibility
+        let savedCourses = localStorage.getItem('coursesData');
+        if (!savedCourses) {
+          savedCourses = localStorage.getItem('courses');
+        }
+        
+        if (savedCourses) {
+          coursesData = JSON.parse(savedCourses);
+          console.log(`Courses.js: Loaded ${coursesData.length} courses from localStorage`);
+          console.log('Courses.js: Courses data:', coursesData);
+        } else {
+          console.log('Courses.js: No courses found in localStorage');
+        }
+        
+        // If Google Sheets sync is enabled, try to sync (but don't replace if it fails)
+        try {
+          const syncedCourses = await dataSyncManager.syncCourses();
+          if (syncedCourses && syncedCourses.length > 0) {
+            coursesData = syncedCourses;
+            console.log('Courses.js: Updated with synced courses:', syncedCourses);
+          }
+        } catch (syncError) {
+          console.log('Courses.js: Sync failed, using localStorage data:', syncError.message);
+        }
         
         // Initialize showAllFeatures state for each course
-        const coursesWithExpandState = syncedCourses.map(course => ({
+        const coursesWithExpandState = coursesData.map(course => ({
           ...course,
           showAllFeatures: course.showAllFeatures || false
         }));
@@ -82,9 +106,9 @@ const Courses = () => {
             ...parsedCategories
           ];
           setCategories(categoriesWithAll);
-        } else if (syncedCourses.length > 0) {
+        } else if (coursesData.length > 0) {
           // If no saved categories, create categories based on existing courses
-          const uniqueCategories = [...new Set(syncedCourses.map(course => course.category))];
+          const uniqueCategories = [...new Set(coursesData.map(course => course.category))];
           const dynamicCategories = uniqueCategories.map(categoryId => ({
             id: categoryId,
             name: getCategoryDisplayName(categoryId)
@@ -110,7 +134,7 @@ const Courses = () => {
           // Calculate default stats if no admin-managed stats exist
           const totalCategories = savedCategories ? JSON.parse(savedCategories).length : 5;
           const defaultStats = {
-            totalCourses: syncedCourses.length || 6,
+            totalCourses: coursesData.length || 6,
             totalStudents: 6740,
             averageRating: 4.8,
             totalCategories: totalCategories

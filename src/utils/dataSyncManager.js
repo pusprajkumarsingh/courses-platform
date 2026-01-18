@@ -76,8 +76,13 @@ class DataSyncManager {
     // Sync courses data
     async syncCourses() {
         try {
-            if (!this.sheetURLs.courses || !this.isSyncEnabled()) {
-                return this.loadLocalCourses();
+            // Always try localStorage first for immediate response
+            const localCourses = this.loadLocalCourses();
+            
+            // Check if sync is enabled and URLs are configured
+            if (!this.isSyncEnabled() || !this.sheetURLs.courses) {
+                console.log('Google Sheets sync not enabled or URL not configured, using localStorage');
+                return localCourses;
             }
 
             console.log('Syncing courses from Google Sheets...');
@@ -89,8 +94,9 @@ class DataSyncManager {
                 console.log(`Synced ${sheetData.length} courses from Google Sheets`);
                 return sheetData;
             } else {
-                // Fallback to localStorage
-                return this.loadLocalCourses();
+                // If no data from sheets, fallback to localStorage
+                console.log('No data from Google Sheets, falling back to localStorage');
+                return localCourses;
             }
         } catch (error) {
             console.error('Error syncing courses:', error);
@@ -217,8 +223,16 @@ class DataSyncManager {
     // Load local data methods (fallbacks)
     loadLocalCourses() {
         try {
-            const courses = localStorage.getItem('courses');
-            return courses ? JSON.parse(courses) : [];
+            // Try both 'courses' and 'coursesData' keys for backward compatibility
+            let courses = localStorage.getItem('coursesData'); // Try coursesData first (admin saves here)
+            if (!courses) {
+                courses = localStorage.getItem('courses');
+            }
+            
+            const parsedCourses = courses ? JSON.parse(courses) : [];
+            console.log(`DataSyncManager: Loaded ${parsedCourses.length} courses from localStorage`);
+            console.log('Courses data:', parsedCourses);
+            return parsedCourses;
         } catch (error) {
             console.error('Error loading local courses:', error);
             return [];

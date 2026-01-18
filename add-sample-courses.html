@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Sample Courses</title>
+</head>
+<body>
+    <h1>Add Sample Courses to localStorage</h1>
+    <button onclick="addSampleCourses()">Add Sample Courses</button>
+    <button onclick="clearCourses()">Clear Courses</button>
+    <button onclick="showCourses()">Show Current Courses</button>
+    <div id="output"></div>
+    
+    <script>
+        function addSampleCourses() {
+            const sampleCourses = [
+                {
+                    id: 1,
+                    title: "Professional Communication Skills",
+                    description: "Master the art of professional communication in workplace settings",
+                    price: 2999,
+                    duration: "6 weeks",
+                    level: "Beginner",
+                    category: "professional",
+                    imageUrl: "",
+                    instructor: "John Doe",
+                    rating: 4.8,
+                    students: 150,
+                    features: ["Verbal Communication", "Written Communication", "Presentation Skills", "Email Etiquette"]
+                },
+                {
+                    id: 2,
+                    title: "Data Science with Python",
+                    description: "Learn data science fundamentals using Python programming",
+                    price: 4999,
+                    duration: "8 weeks",
+                    level: "Intermediate",
+                    category: "data-science",
+                    imageUrl: "",
+                    instructor: "Jane Smith",
+                    rating: 4.9,
+                    students: 200,
+                    features: ["Python Programming", "Data Analysis", "Machine Learning", "Visualization"]
+                },
+                {
+                    id: 3,
+                    title: "English Speaking Course",
+                    description: "Improve your English speaking skills for professional growth",
+                    price: 1999,
+                    duration: "4 weeks",
+                    level: "Beginner",
+                    category: "english",
+                    imageUrl: "",
+                    instructor: "Mike Johnson",
+                    rating: 4.7,
+                    students: 300,
+                    features: ["Pronunciation", "Grammar", "Vocabulary", "Conversation"]
+                }
+            ];
+            
+            localStorage.setItem('coursesData', JSON.stringify(sampleCourses));
+            localStorage.setItem('courses', JSON.stringify(sampleCourses));
+            
+            document.getElementById('output').innerHTML = '<p style="color: green;">Sample courses added successfully!</p>';
+            showCourses();
+        }
+        
+        function clearCourses() {
+            localStorage.removeItem('coursesData');
+            localStorage.removeItem('courses');
+            document.getElementById('output').innerHTML = '<p style="color: red;">Courses cleared!</p>';
+        }
+        
+        function showCourses() {
+            const coursesData = localStorage.getItem('coursesData');
+            const courses = localStorage.getItem('courses');
+            
+            let html = '<h2>Current Courses in localStorage:</h2>';
+            html += '<h3>coursesData key:</h3>';
+            html += `<pre>${coursesData || 'No data'}</pre>`;
+            html += '<h3>courses key:</h3>';
+            html += `<pre>${courses || 'No data'}</pre>`;
+            
+            document.getElementById('output').innerHTML = html;
+        }
+        
+        // Show current courses on load
+        showCourses();
+    </script>
+</body>
+</html>

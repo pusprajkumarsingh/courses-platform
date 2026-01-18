@@ -57,14 +57,19 @@ function App() {
               padding-top: 15px !important;
             }
             
+            /* Ensure all containers have space for mobile toggle */
+            .container {
+              padding-left: 75px !important;
+            }
+            
             /* Very small screens - make toggle switch even smaller */
             @media (max-width: 480px) {
               .mobile-optimized .container {
-                padding: 10px 15px 10px 70px !important;
+                padding: 10px 15px 10px 75px !important;
               }
               
               .header:not(.mobile-optimized .header) .container {
-                padding: 0 20px 0 70px !important;
+                padding: 0 20px 0 75px !important;
               }
             }
             
@@ -76,7 +81,7 @@ function App() {
               }
               
               .header:not(.mobile-optimized .header) .container {
-                padding: 0 60px 0 80px !important; /* Space for mobile toggle switch */
+                padding: 0 60px 0 85px !important; /* Space for mobile toggle switch */
               }
               
               .header:not(.mobile-optimized .header) .nav {
@@ -120,7 +125,7 @@ function App() {
             
             .mobile-optimized .container {
               max-width: 100% !important;
-              padding: 10px 15px 10px 80px !important; /* Space for mobile toggle switch on left */
+              padding: 10px 15px 10px 85px !important; /* Space for mobile toggle switch on left */
             }
             
             .mobile-optimized .nav {
@@ -294,8 +299,8 @@ function App() {
           title={isMobileView ? "Switch to Desktop View" : "Switch to Mobile View"}
           style={{
             position: 'fixed',
-            top: '15px',
-            left: '15px',
+            top: '10px',
+            left: '10px',
             zIndex: 99999,
             width: '50px',
             height: '26px',
