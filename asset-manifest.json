@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/courses-platform/static/css/main.1c07d52f.css",
-    "main.js": "/courses-platform/static/js/main.ea2197b9.js",
+    "main.js": "/courses-platform/static/js/main.ccce87cf.js",
     "static/js/82.3d5ee11b.chunk.js": "/courses-platform/static/js/82.3d5ee11b.chunk.js",
     "static/js/239.20ecd2ce.chunk.js": "/courses-platform/static/js/239.20ecd2ce.chunk.js",
     "index.html": "/courses-platform/index.html"
   },
   "entrypoints": [
     "static/css/main.1c07d52f.css",
-    "static/js/main.ea2197b9.js"
+    "static/js/main.ccce87cf.js"
   ]
 }
