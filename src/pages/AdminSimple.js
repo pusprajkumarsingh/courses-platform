@@ -443,14 +443,6 @@ const AdminSimple = () => {
         e.preventDefault();
         setLoginError('');
 
-        // Debug logging
-        console.log('Login attempt:', {
-            inputUsername: loginForm.username,
-            inputPassword: loginForm.password,
-            storedUsername: adminCredentials.username,
-            storedPassword: adminCredentials.password
-        });
-
         if (loginForm.username === adminCredentials.username && loginForm.password === adminCredentials.password) {
             setIsLoggedIn(true);
             localStorage.setItem('adminToken', 'authenticated');
@@ -2255,12 +2247,6 @@ const AdminSimple = () => {
                                     </button>
                                 </div>
                             </form>
-                            
-                            <div style={{ marginTop: '20px', padding: '15px', background: '#e3f2fd', borderRadius: '5px', fontSize: '0.9rem' }}>
-                                <strong>Current Credentials:</strong><br />
-                                Username: {adminCredentials.username}<br />
-                                Password: {adminCredentials.password}
-                            </div>
                             
                             <div style={{ marginTop: '15px', textAlign: 'center' }}>
                                 <button
